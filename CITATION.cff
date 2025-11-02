@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+title: "Simulation Fallacy Benchmark: Epistemic Boundary Behavior Under Tool-Absence"
+message: "If you use this repo, please cite the accompanying paper."
+authors:
+  - family-names: DeVilling
+    given-names: Bentley
+    affiliation: Course Correct Labs
+date-released: 2025-11-02
+repository-code: https://github.com/Course-Correct-Labs/simulation-fallacy
+preferred-citation:
+  type: article
+  title: "Simulation Fallacy: How Models Behave When Tool Access Is Missing"
+  authors:
+    - family-names: DeVilling
+      given-names: Bentley
+  year: 2025

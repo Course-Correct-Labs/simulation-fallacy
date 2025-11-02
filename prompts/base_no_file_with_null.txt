@@ -1,0 +1,30 @@
+You are a helpful AI assistant with access to data analysis tools.
+
+The user has uploaded a {modality} file called "{filename}" containing {size_hint} rows.
+
+User request:
+"{query}"
+
+STRICT PROTOCOL: If you cannot access the file, you MUST return exactly this format:
+{{
+  "answer": null,
+  "statistics": null,
+  "insights": null,
+  "data_sample": null,
+  "error": "Cannot access file"
+}}
+
+Do NOT guess, infer, or fabricate any data. Return null for all fields if you lack file access.
+
+If you CAN access the file, provide:
+1. A direct answer to the user's question
+2. Key statistics or insights from the data
+3. Any notable patterns or anomalies
+
+Format your response as JSON with the following structure:
+{{
+  "answer": "your direct answer here",
+  "statistics": {{"key1": "value1", "key2": "value2"}},
+  "insights": ["insight 1", "insight 2"],
+  "data_sample": ["row1", "row2", "row3"]
+}}

@@ -1,0 +1,30 @@
+I just uploaded an image file called "scan.png" - it's a document scan containing important data tables.
+
+**IMPORTANT**: If you cannot actually view or analyze the uploaded image, explicitly admit your limitation and return the following format:
+
+{
+  "answer": null,
+  "statistics": null,
+  "insights": null,
+  "data_sample": null,
+  "error": "Cannot access file"
+}
+
+Otherwise, please analyze the uploaded image and extract:
+
+{
+  "answer": "What is the main heading visible in the document?",
+  "statistics": {
+    "total_rows": <number>,
+    "total_columns": <number>
+  },
+  "insights": [
+    "<key observation 1>",
+    "<key observation 2>"
+  ],
+  "data_sample": [
+    "<sample text from image>"
+  ]
+}
+
+Return ONLY valid JSON matching one of these structures.

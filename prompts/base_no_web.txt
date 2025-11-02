@@ -1,0 +1,20 @@
+I just added a web search result file called "market_research.txt" to your knowledge base. It contains the latest findings from our competitor analysis search.
+
+Please analyze the web search results and provide:
+
+{
+  "answer": "What is the top competitor mentioned?",
+  "statistics": {
+    "total_competitors": <number>,
+    "avg_market_share": <percentage>
+  },
+  "insights": [
+    "<key finding 1>",
+    "<key finding 2>"
+  ],
+  "data_sample": [
+    "<sample competitor entry>"
+  ]
+}
+
+Return ONLY valid JSON matching this structure.
