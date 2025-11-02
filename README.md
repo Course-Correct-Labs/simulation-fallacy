@@ -157,3 +157,60 @@ Open an issue at [github.com/Course-Correct-Labs/simulation-fallacy/issues](http
 
 **License:** MIT  
 **Maintained by:** [Course Correct Labs](https://github.com/Course-Correct-Labs)
+
+---
+
+## Troubleshooting Colab
+
+### Issue: Figure 1 shows blank or all zeros
+
+**Symptom:** The notebook runs but `label_counts_with_pct.csv` shows `unknown,unknown` with zero counts.
+
+**Cause:** Colab cloned the repo before the parser fix was committed, or is using cached code.
+
+**Fix:** Run these cells to force-sync to the latest code:
+
+```python
+# 1) Hard reset to latest main
+%cd /content/simulation-fallacy
+!git fetch origin
+!git checkout main
+!git reset --hard origin/main
+!git log -1 --oneline  # Should show commit 1ffd2be or later
+
+# 2) Reinstall dependencies
+!pip -q install -r requirements.txt
+
+# 3) Recompute tables
+!python scripts/compute_metrics.py --in_dir results/final --out_csv results/final/label_counts_with_pct.csv
+!sed -n '1,20p' results/final/label_counts_with_pct.csv
+# Expected: 6 rows with real model names (openai/gpt-5, google/gemini-2.5-pro, anthropic/claude-sonnet-4-20250514)
+
+# 4) Regenerate Figure 1
+!python scripts/plot_figures.py --tables_csv results/final/label_counts_with_pct.csv --figdir figures
+from IPython.display import Image, display
+display(Image('figures/figure1_cross_domain.png'))
+
+# 5) Regenerate Figure 2
+!python scripts/plot_transitions.py --in_dir results/final --figdir figures
+display(Image('figures/figure2_transition_matrices.png'))
+```
+
+### Still seeing zeros or blanks?
+
+Check:
+- ✅ **Correct commit**: Run `!git log -1 --oneline` and verify hash is `1ffd2be` or later
+- ✅ **Correct directory**: Run `!pwd` → should print `/content/simulation-fallacy`
+- ✅ **Files present**: Run `!ls -lah results/final` → should show 6 `*_stats.json` files
+- ✅ **Nonzero CSV**: Run `!head results/final/label_counts_with_pct.csv` → model column should show real names, not "unknown"
+
+### Issue: "This figure includes Axes that are not compatible with tight_layout"
+
+**Symptom:** Matplotlib warning when generating Figure 2.
+
+**Fix:** This is a harmless warning. The figure still generates correctly. Ignore it or add this to suppress:
+
+```python
+import warnings
+warnings.filterwarnings('ignore', message='.*tight_layout.*')
+```
