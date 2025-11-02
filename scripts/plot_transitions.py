@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
 Compute and plot turn-by-turn transition matrices from persistence study data.
-Robust to various label formats and JSON structures.
 """
 import argparse
 import json
 import os
-import re
 from collections import defaultdict
 import numpy as np
 import matplotlib.pyplot as plt
+import warnings
+
+# Suppress tight_layout warning
+warnings.filterwarnings('ignore', message='.*tight_layout.*')
 
 LABELS = ["FABRICATION", "ADMISSION", "SILENT_REFUSAL", "NULL"]
 
@@ -32,22 +34,19 @@ def canonicalize_label(label):
     elif s in LABELS:
         return s
     else:
-        return None  # Unknown label
+        return None
 
 def load_sequences(json_path):
-    """Load and group results by sequence (dedupe_key), handling nested by_model or flat structure."""
+    """
+    Load and group results by sequence.
+    In persistence studies, turns have DIFFERENT dedupe_keys but share (condition_id, seed).
+    """
     with open(json_path) as f:
         data = json.load(f)
     
-    # Handle different JSON structures
     if "results" in data and isinstance(data["results"], dict):
-        # Nested by_model structure
         results = data["results"]
-    elif isinstance(data, dict) and any(k.startswith("openai/") or k.startswith("google/") or k.startswith("anthropic/") for k in data.keys()):
-        # Direct model keys
-        results = data
     else:
-        # Fallback: try to find any list of items
         results = {"unknown": data.get("items", [])}
     
     sequences_by_model = {}
@@ -55,17 +54,20 @@ def load_sequences(json_path):
     for model, items in results.items():
         if not isinstance(items, list):
             continue
-            
+        
         sequences = defaultdict(list)
+        
         for item in items:
-            key = item.get("dedupe_key") or item.get("sequence_id") or item.get("id", "default")
+            # Group by (condition_id, seed) for multi-turn sequences
+            condition = item.get("condition_id", "default")
+            seed = item.get("seed", 0)
+            seq_key = f"{condition}_{seed}"
             
-            # Get label
             label = item.get("classification") or item.get("label") or item.get("state")
             canonical_label = canonicalize_label(label)
             
             if canonical_label:
-                sequences[key].append({
+                sequences[seq_key].append({
                     "turn_index": item.get("turn_index", 0),
                     "label": canonical_label
                 })
@@ -86,7 +88,7 @@ def compute_transition_matrix(sequences):
     for seq_items in sequences.values():
         if len(seq_items) < 2:
             continue
-            
+        
         for i in range(len(seq_items) - 1):
             from_label = seq_items[i]["label"]
             to_label = seq_items[i + 1]["label"]
@@ -100,7 +102,7 @@ def compute_transition_matrix(sequences):
         for j, to_lab in enumerate(LABELS):
             matrix[i, j] = transitions[from_lab][to_lab]
     
-    # Normalize by row (convert to probabilities)
+    # Normalize by row
     row_sums = matrix.sum(axis=1, keepdims=True)
     with np.errstate(divide='ignore', invalid='ignore'):
         matrix_norm = np.where(row_sums > 0, matrix / row_sums, 0.0)
@@ -116,12 +118,10 @@ def plot_all_transitions(sequences_by_model, figdir):
         print("Warning: No models found with valid sequences")
         return
     
-    # Create subplot grid
     cols = min(3, n_models)
     rows = (n_models + cols - 1) // cols
     fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 5 * rows))
     
-    # Ensure axes is always iterable
     if n_models == 1:
         axes = [axes]
     else:
@@ -131,10 +131,8 @@ def plot_all_transitions(sequences_by_model, figdir):
         ax = axes[idx]
         _, matrix_norm = compute_transition_matrix(sequences)
         
-        # Plot heatmap
         im = ax.imshow(matrix_norm, cmap='YlOrRd', vmin=0, vmax=1)
         
-        # Set ticks and labels
         ax.set_xticks(range(len(LABELS)))
         ax.set_yticks(range(len(LABELS)))
         ax.set_xticklabels([l.replace("_", "\n") for l in LABELS], fontsize=9)
@@ -144,13 +142,12 @@ def plot_all_transitions(sequences_by_model, figdir):
         for i in range(len(LABELS)):
             for j in range(len(LABELS)):
                 val = matrix_norm[i, j]
-                if val > 0.01:  # Only show non-trivial values
+                if val > 0.01:
                     text = ax.text(j, i, f"{val:.2f}",
                                   ha="center", va="center", 
                                   color="white" if val > 0.5 else "black",
-                                  fontsize=8, fontweight='bold')
+                                  fontsize=10, fontweight='bold')
         
-        # Model name as title (extract short name)
         model_short = model.split("/")[-1] if "/" in model else model
         ax.set_title(f"{model_short}", fontsize=11, fontweight='bold')
         ax.set_xlabel("Turn N+1", fontsize=10)
@@ -160,7 +157,6 @@ def plot_all_transitions(sequences_by_model, figdir):
     for idx in range(n_models, len(axes)):
         axes[idx].axis('off')
     
-    # Add colorbar
     fig.colorbar(im, ax=axes.tolist(), fraction=0.02, pad=0.04, label="Transition Probability")
     
     plt.suptitle("Turn-by-Turn Transition Dynamics (Persistence Study)", fontsize=13, fontweight='bold')
@@ -171,7 +167,6 @@ def plot_all_transitions(sequences_by_model, figdir):
     print(f"Saved {out_path}")
 
 def main(in_dir, figdir):
-    # Find persistence JSON files (exclude _stats.json)
     persistence_files = [
         f for f in os.listdir(in_dir)
         if f.startswith("persistence_") and f.endswith(".json") and "_stats" not in f
@@ -181,7 +176,6 @@ def main(in_dir, figdir):
         print(f"Warning: No persistence JSON files found in {in_dir}")
         return
     
-    # Load all persistence files and merge sequences by model
     all_sequences = {}
     
     for filename in persistence_files:
@@ -193,7 +187,6 @@ def main(in_dir, figdir):
         for model, sequences in sequences_by_model.items():
             if model not in all_sequences:
                 all_sequences[model] = {}
-            # Merge sequences (avoiding duplicate keys across files)
             for seq_key, seq_items in sequences.items():
                 unique_key = f"{filename}:{seq_key}"
                 all_sequences[model][unique_key] = seq_items
@@ -204,13 +197,15 @@ def main(in_dir, figdir):
     
     print(f"Found {len(all_sequences)} models:")
     for model, seqs in all_sequences.items():
-        print(f"  {model}: {len(seqs)} sequences")
+        # Count multi-turn sequences
+        multi_turn = sum(1 for seq in seqs.values() if len(seq) >= 2)
+        print(f"  {model}: {len(seqs)} sequences ({multi_turn} with 2+ turns)")
     
     plot_all_transitions(all_sequences, figdir)
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--in_dir", required=True, help="Directory with persistence JSON files")
-    ap.add_argument("--figdir", required=True, help="Output directory for figures")
+    ap.add_argument("--in_dir", required=True)
+    ap.add_argument("--figdir", required=True)
     args = ap.parse_args()
     main(args.in_dir, args.figdir)
