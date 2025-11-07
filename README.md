@@ -1,4 +1,9 @@
-# Simulation Fallacy Benchmark
+> ⚠️ **Status:** Archived (Nov 2025)  
+> This repository documents the original Simulation Fallacy study.  
+> Follow-up validation revealed a token-cap artifact that invalidated the main comparative finding.  
+> See `SF_Resolution_Update.md` for details.
+> 
+# Simulation Fallacy Benchmark 
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Course-Correct-Labs/simulation-fallacy/blob/main/notebooks/Simulation_Fallacy_Reproduction.ipynb)
 
